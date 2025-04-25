@@ -1,4 +1,4 @@
-# WMSE Downloader
+# WMSE Archive Downloader
 
 A simple tool to download MP3 archives from WMSE radio shows, including their playlists.
 
