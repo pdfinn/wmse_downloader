@@ -82,6 +82,13 @@ type Archive struct {
 	PlaylistDate string  `json:"playlist_date"` // Date of the show
 }
 
+// Version information (set by goreleaser)
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 // validateShowID ensures the show ID meets security requirements
 func validateShowID(id string) error {
 	if id == "" || len(id) > maxShowIDLength {
@@ -446,7 +453,14 @@ func main() {
 	outDir := flag.String("out", "./archives", "Directory to save MP3 files")
 	delay := flag.Duration("delay", 5*time.Second, "Delay between downloads to avoid hammering")
 	debug := flag.Bool("debug", false, "Enable debug logging")
+	showVersion := flag.Bool("version", false, "Show version information")
 	flag.Parse()
+
+	// Show version and exit if requested
+	if *showVersion {
+		fmt.Printf("WMSE Downloader v%s (%s) built at %s\n", version, commit, date)
+		os.Exit(0)
+	}
 
 	// Setup logging with appropriate level
 	logLevel := slog.LevelInfo

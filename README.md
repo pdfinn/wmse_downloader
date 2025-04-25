@@ -16,6 +16,20 @@ A simple tool to download MP3 archives from WMSE radio shows, including their pl
 
 ## Installation
 
+### Pre-built Binaries
+
+The easiest way to install WMSE Downloader is to download a pre-built binary from the [releases page](https://github.com/pdfinn/wmse_downloader/releases). We provide binaries for:
+
+- Windows (64-bit)
+- macOS (Intel and Apple Silicon)
+- Linux (64-bit, ARM64)
+
+Simply download the appropriate archive for your system, extract it, and run the executable.
+
+### Building from Source
+
+If you prefer to build from source:
+
 1. Make sure you have [Go](https://golang.org/dl/) installed (version 1.21 or later)
 2. Clone this repository:
    ```bash
@@ -47,6 +61,7 @@ For example, to download the "Ded" show:
 - `-out`: Directory to save MP3 files (default: "./archives")
 - `-delay`: Delay between downloads in seconds (default: 5)
 - `-debug`: Enable detailed debug logging (default: false)
+- `-version`: Show version information
 
 Example with all options:
 ```bash
