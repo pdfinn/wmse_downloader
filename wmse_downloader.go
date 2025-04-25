@@ -30,6 +30,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/schollz/progressbar/v3"
 	"golang.org/x/net/html"
 )
 
@@ -217,8 +218,26 @@ func fetchArchives(ctx context.Context, archiveID string) ([]Archive, error) {
 	return archives, nil
 }
 
+// progressReader wraps an io.Reader to track progress
+type progressReader struct {
+	reader     io.Reader
+	bar        *progressbar.ProgressBar
+	onProgress func(written int64)
+}
+
+func (pr *progressReader) Read(p []byte) (int, error) {
+	n, err := pr.reader.Read(p)
+	if n > 0 {
+		pr.bar.Add(n)
+		if pr.onProgress != nil {
+			pr.onProgress(int64(n))
+		}
+	}
+	return n, err
+}
+
 // downloadShow downloads a single show's MP3 file and attaches playlist information if available
-func downloadShow(archive Archive, outputDir string, delay time.Duration) error {
+func downloadShow(archive Archive, outputDir string, delay time.Duration, debug bool) error {
 	logger := slog.Default()
 
 	if archive.ArchiveURL == "" {
@@ -294,12 +313,29 @@ func downloadShow(archive Archive, outputDir string, delay time.Duration) error 
 			continue
 		}
 
+		// Create progress bar
+		bar := progressbar.NewOptions64(
+			resp.ContentLength,
+			progressbar.OptionSetDescription(fmt.Sprintf("Downloading %s", filename)),
+			progressbar.OptionSetWriter(os.Stderr),
+			progressbar.OptionShowBytes(true),
+			progressbar.OptionSetWidth(15),
+			progressbar.OptionThrottle(65*time.Millisecond),
+			progressbar.OptionShowCount(),
+			progressbar.OptionOnCompletion(func() {
+				fmt.Fprint(os.Stderr, "\n")
+			}),
+			progressbar.OptionSpinnerType(14),
+			progressbar.OptionFullWidth(),
+			progressbar.OptionSetRenderBlankState(true),
+		)
+
 		// Create a progress reader
 		progressReader := &progressReader{
 			reader: resp.Body,
-			total:  resp.ContentLength,
+			bar:    bar,
 			onProgress: func(written int64) {
-				if written%1024 == 0 { // Log every 1KB
+				if debug && written%1024 == 0 { // Only log if debug is enabled
 					logger.Debug("Download progress",
 						"filename", filename,
 						"written", written,
@@ -404,41 +440,29 @@ func fetchPlaylist(playlistID string) (string, error) {
 	return sb.String(), nil
 }
 
-// progressReader wraps an io.Reader to track progress
-type progressReader struct {
-	reader     io.Reader
-	total      int64
-	written    int64
-	onProgress func(written int64)
-}
-
-func (pr *progressReader) Read(p []byte) (int, error) {
-	n, err := pr.reader.Read(p)
-	if n > 0 {
-		pr.written += int64(n)
-		if pr.onProgress != nil {
-			pr.onProgress(pr.written)
-		}
-	}
-	return n, err
-}
-
 func main() {
-	// Setup logging
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: slog.LevelDebug,
-	}))
-	slog.SetDefault(logger)
-
 	// Command‑line flags
 	showID := flag.String("show", "ded", "ID of the WMSE show to download archives for")
 	outDir := flag.String("out", "./archives", "Directory to save MP3 files")
 	delay := flag.Duration("delay", 5*time.Second, "Delay between downloads to avoid hammering")
+	debug := flag.Bool("debug", false, "Enable debug logging")
 	flag.Parse()
+
+	// Setup logging with appropriate level
+	logLevel := slog.LevelInfo
+	if *debug {
+		logLevel = slog.LevelDebug
+	}
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: logLevel,
+	}))
+	slog.SetDefault(logger)
 
 	logger.Info("Starting archive download",
 		"show_id", *showID,
-		"output_dir", *outDir)
+		"output_dir", *outDir,
+		"debug", *debug)
 
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
@@ -465,7 +489,7 @@ func main() {
 
 	// Download each show
 	for _, archive := range archives {
-		if err := downloadShow(archive, *outDir, *delay); err != nil {
+		if err := downloadShow(archive, *outDir, *delay, *debug); err != nil {
 			logger.Error("Download failed",
 				"archive", archive.ShowID,
 				"error", err)

@@ -7,9 +7,12 @@ A simple tool to download MP3 archives from WMSE radio shows, including their pl
 - Downloads MP3 archives from WMSE shows
 - Automatically skips files you've already downloaded
 - Downloads and saves playlists as text files
+- Shows real-time download progress with a progress bar
+- Displays download speed and ETA
 - Respects server limits with built-in delays
 - Shows download progress
 - Retries failed downloads automatically
+- Optional debug logging for troubleshooting
 
 ## Installation
 
@@ -43,10 +46,11 @@ For example, to download the "Ded" show:
 - `-show`: The ID of the WMSE show to download (required)
 - `-out`: Directory to save MP3 files (default: "./archives")
 - `-delay`: Delay between downloads in seconds (default: 5)
+- `-debug`: Enable detailed debug logging (default: false)
 
 Example with all options:
 ```bash
-./wmse_downloader -show ded -out ~/Music/WMSE -delay 10
+./wmse_downloader -show ded -out ~/Music/WMSE -delay 10 -debug
 ```
 
 ### Finding Show IDs
